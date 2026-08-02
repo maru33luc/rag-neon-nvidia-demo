@@ -1,26 +1,70 @@
 <div class="chat-input-area">
   <div class="mode-switcher" role="tablist" aria-label="Modo de consulta">
-    <button class="mode-btn" type="button" [class.active]="mode === 'ask'" (click)="mode = 'ask'">
+    <button class="mode-btn" type="button" [class.active]="mode === 'ask'" (click)="setMode('ask')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       <span>Preguntar a la BD (RAG)</span>
     </button>
-    <button class="mode-btn" type="button" [class.active]="mode === 'ingest'" (click)="mode = 'ingest'">
+    <button class="mode-btn" type="button" [class.active]="mode === 'ingest'" (click)="setMode('ingest')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
       <span>Ingestar documento (pgvector)</span>
     </button>
   </div>
 
-  <div class="input-wrapper" [class.ingest-mode]="mode === 'ingest'">
-    <textarea
-      class="message-input"
-      rows="2"
-      [(ngModel)]="draft"
-      (keydown)="onKeydown($event)"
-      [placeholder]="mode === 'ask' ? 'Haz una pregunta sobre tus documentos almacenados...' : 'Pega el texto del documento que deseas vectorizar e ingresar a Supabase...'"
-      aria-label="Mensaje"
-    ></textarea>
+  @if (mode === 'ingest') {
+    <div class="source-selector" role="tablist" aria-label="Fuente de documento">
+      <button class="source-btn" type="button" [class.active]="source === 'text'" (click)="setSource('text')">Pegar texto</button>
+      <button class="source-btn" type="button" [class.active]="source === 'file'" (click)="setSource('file')">Subir archivo</button>
+      <button class="source-btn" type="button" [class.active]="source === 'url'" (click)="setSource('url')">Cargar desde URL</button>
+    </div>
+  }
 
-    <button class="send-btn" type="button" aria-label="Enviar mensaje" [disabled]="isBusy || !draft.trim()" (click)="onSubmit()">
+  <div class="input-wrapper" [class.ingest-mode]="mode === 'ingest'">
+    @if (mode === 'ask' || source === 'text') {
+      <textarea
+        class="message-input"
+        rows="2"
+        [(ngModel)]="draft"
+        (keydown)="onKeydown($event)"
+        [placeholder]="mode === 'ask' ? 'Haz una pregunta sobre tus documentos almacenados...' : 'Pega el texto del documento que deseas vectorizar e ingresar a la base de datos...'"
+        aria-label="Mensaje"
+      ></textarea>
+    }
+
+    @if (mode === 'ingest' && source === 'file') {
+      <div
+        class="file-drop-zone"
+        [class.active]="isDragging"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <input type="file" accept="text/*,.md,.json,.csv" class="file-input" (change)="onFileInputChange($event)" />
+        <div class="file-drop-content">
+          <strong>Arrastra y suelta un archivo</strong> o haz clic para seleccionar uno.
+          @if (selectedFileName) {
+            <span class="file-name">{{ selectedFileName }}</span>
+          }
+          @if (fileText && !selectedFileName) {
+            <span class="file-name">Archivo cargado correctamente.</span>
+          }
+        </div>
+      </div>
+    }
+
+    @if (mode === 'ingest' && source === 'url') {
+      <div class="url-panel">
+        <input
+          class="url-input"
+          type="url"
+          [(ngModel)]="urlInput"
+          placeholder="Introduce la URL pública del documento o recurso de texto..."
+          aria-label="URL del documento"
+          (keydown)="onKeydown($event)"
+        />
+      </div>
+    }
+
+    <button class="send-btn" type="button" aria-label="Enviar mensaje" [disabled]="!canSubmit" (click)="onSubmit()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M12 19V5M5 12l7-7 7 7"
@@ -33,8 +77,12 @@
     </button>
   </div>
 
+  @if (sourceError) {
+    <div class="source-error">{{ sourceError }}</div>
+  }
+
   <p class="disclaimer">
     <span class="disclaimer-badge">{{ mode === 'ask' ? '🔍 Búsqueda Vectorial 2048d' : '⚡ Vectorización Nemotron' }}</span>
-    {{ mode === 'ask' ? 'El sistema consultará Supabase pgvector y responderá fundamentado únicamente en tu base de datos.' : 'El texto se dividirá en fragmentos, generará vectores de 2048d con NVIDIA y los guardará en PostgreSQL.' }}
+    {{ mode === 'ask' ? 'El sistema consultará Supabase pgvector y responderá fundamentado únicamente en tu base de datos.' : source === 'file' ? 'Arrastra o selecciona un archivo de texto; se vectorizará e ingresará en la base de datos.' : source === 'url' ? 'Cargar la fuente desde una URL pública y extraer el texto para vectorizarlo.' : 'El texto se dividirá en fragmentos, generará vectores de 2048d con NVIDIA y los guardará en PostgreSQL.' }}
   </p>
 </div>

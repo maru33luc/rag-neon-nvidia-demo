@@ -97,7 +97,7 @@ export class ChatMainComponent {
 
     this.messages = [
       ...this.messages,
-      { role: 'user', content: text, timestamp: timeStr },
+      { role: 'user', content: event.displayText ?? text, timestamp: timeStr },
     ];
 
     this.isProcessing = true;
@@ -141,16 +141,17 @@ export class ChatMainComponent {
       return;
     }
 
-    // Ingest mode
-    this.ragService.ingest(text, null).subscribe({
+    const ingestRequest = event.source === 'url' ? this.ragService.ingestUrl(text) : this.ragService.ingest(text, null);
+    ingestRequest.subscribe({
       next: (response) => {
         clearInterval(stepInterval);
         const inserted = response.inserted ?? 0;
+        const sourceMessage = event.source === 'url' ? 'desde la URL proporcionada' : 'del contenido proporcionado';
         this.messages = [
           ...this.messages,
           {
             role: 'assistant',
-            content: `✅ **Documento indexado con éxito.** Se dividió el contenido en **${inserted} fragmento${inserted === 1 ? '' : 's'}**, se generaron los vectores de 2048 dimensiones con NVIDIA Nemotron y se almacenaron en la base de datos Supabase.`,
+            content: `✅ **Documento indexado con éxito ${sourceMessage}.** Se dividió el contenido en **${inserted} fragmento${inserted === 1 ? '' : 's'}**, se generaron los vectores de 2048 dimensiones con NVIDIA Nemotron y se almacenaron en la base de datos Supabase.`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ];

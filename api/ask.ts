@@ -212,3 +212,5 @@ Respuesta Detallada:`;
     await pool.end();
   }
 }
+
+export {};

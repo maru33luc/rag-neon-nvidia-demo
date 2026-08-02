@@ -21,7 +21,7 @@ A retrieval-augmented generation application built with **Angular 19** for the f
 ```
 
 ### Core runtime flow
-- `/ingest`: chunk raw text, create NVIDIA 2048-dim embeddings, store vectors in Neon `public.documents`.
+- `/ingest`: chunk raw text, create NVIDIA 2048-dim embeddings, store vectors in Neon `public.documents`. Supports ingesting text pasted in the chat, uploaded files, or remote documents fetched from a public URL.
 - `/ask`: embed a question, call `public.match_documents()` to retrieve relevant chunks, and prompt NVIDIA LLM for a grounded response.
 
 ---
@@ -185,8 +185,9 @@ npx vercel --prod
 ## API Endpoints
 
 ### POST /api/ingest
-- Request body: `{ "text": string, "owner"?: string }`
+- Request body: `{ "text"?: string, "url"?: string, "owner"?: string }`
 - Splits text into chunks, generates embeddings, and inserts them into Neon.
+- If `url` is provided, the backend downloads the remote resource and indexes its text content.
 
 ### POST /api/ask
 - Request body: `{ "question": string, "top_k"?: number }`

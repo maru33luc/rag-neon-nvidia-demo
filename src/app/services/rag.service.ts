@@ -41,4 +41,10 @@ export class RagService {
       owner,
     });
   }
+
+  ingestUrl(url: string) {
+    return this.http.post<IngestResponse>(`${this.apiBaseUrl}/ingest`, {
+      url,
+    });
+  }
 }

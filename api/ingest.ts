@@ -84,25 +84,66 @@ module.exports = async function handler(req: any, res: any) {
   try {
     const body = await parseJsonBody(req);
     const text: unknown = body?.text;
+    const url: unknown = body?.url;
     const owner: unknown = body?.owner;
 
-    if (!text || typeof text !== 'string') {
-      return sendJson(res, { error: 'Missing text in request body' }, 400);
+    let contentText: string | null = null;
+
+    if (typeof url === 'string' && url.trim()) {
+      const requestedUrl = url.trim();
+      let parsedUrl: URL;
+
+      try {
+        parsedUrl = new URL(requestedUrl);
+      } catch (error) {
+        return sendJson(res, { error: 'URL inválida.' }, 400);
+      }
+
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return sendJson(res, { error: 'Solo se permiten URLs HTTP o HTTPS.' }, 400);
+      }
+
+      if (/^(localhost|127\.|0\.0\.0\.0|\[::1\])$/i.test(parsedUrl.hostname)) {
+        return sendJson(res, { error: 'No se permite acceder a hosts locales desde la URL.' }, 400);
+      }
+
+      const fetched = await fetch(parsedUrl.toString(), { method: 'GET', redirect: 'follow' });
+      if (!fetched.ok) {
+        const fetchedText = await fetched.text().catch(() => '');
+        return sendJson(
+          res,
+          {
+            error: 'No se pudo descargar el contenido desde la URL.',
+            details: `${fetched.status} ${fetched.statusText}`,
+            body: fetchedText,
+          },
+          502
+        );
+      }
+
+      contentText = (await fetched.text()).trim();
+      if (!contentText) {
+        return sendJson(res, { error: 'El contenido descargado desde la URL está vacío.' }, 400);
+      }
+    } else if (typeof text === 'string' && text.trim()) {
+      contentText = text.trim();
+    } else {
+      return sendJson(res, { error: 'Missing text or url in request body' }, 400);
     }
 
     const ownerStr = normalizeOwner(owner);
     const chunks: string[] = [];
     let start = 0;
 
-    while (start < text.length) {
-      let end = Math.min(start + CHUNK_SIZE_CHARS, text.length);
+    while (start < contentText.length) {
+      let end = Math.min(start + CHUNK_SIZE_CHARS, contentText.length);
 
-      if (end < text.length) {
-        const nextSpace = text.lastIndexOf(' ', end);
+      if (end < contentText.length) {
+        const nextSpace = contentText.lastIndexOf(' ', end);
         if (nextSpace > start) end = nextSpace;
       }
 
-      const chunk = text.slice(start, end).trim();
+      const chunk = contentText.slice(start, end).trim();
       if (chunk) chunks.push(chunk);
       start = end + 1;
     }
@@ -170,3 +211,5 @@ module.exports = async function handler(req: any, res: any) {
     await pool.end();
   }
 }
+
+export {};

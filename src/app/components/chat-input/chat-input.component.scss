@@ -119,3 +119,99 @@
   background: rgba(148, 163, 184, 0.12);
   color: #94a3b8;
 }
+
+.source-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.source-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.source-btn:hover {
+  border-color: rgba(118, 185, 0, 0.4);
+}
+
+.source-btn.active {
+  background: #0f172a;
+  border-color: #76b900;
+  color: #f8fafc;
+}
+
+.file-drop-zone {
+  position: relative;
+  flex: 1;
+  min-height: 100px;
+  border: 2px dashed rgba(148, 163, 184, 0.4);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.9);
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-drop-zone.active {
+  border-color: #76b900;
+  background: rgba(55, 65, 81, 0.95);
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.file-drop-content {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-name {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.url-panel {
+  flex: 1;
+}
+
+.url-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  outline: none;
+  font-size: 14px;
+}
+
+.url-input::placeholder {
+  color: #94a3b8;
+}
+
+.source-error {
+  margin-top: 10px;
+  color: #f87171;
+  font-size: 13px;
+  text-align: center;
+}
