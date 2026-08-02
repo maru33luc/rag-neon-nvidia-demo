@@ -131,6 +131,12 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, { error: 'Missing text or url in request body' }, 400);
     }
 
+    // Sanitize text by stripping null bytes and invalid control characters
+    contentText = contentText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '').trim();
+    if (!contentText) {
+      return sendJson(res, { error: 'El contenido no contiene texto legible después de sanitizar.' }, 400);
+    }
+
     const ownerStr = normalizeOwner(owner);
     const chunks: string[] = [];
     let start = 0;
@@ -172,9 +178,15 @@ export default async function handler(req: any, res: any) {
 
     if (!embRes.ok) {
       const errText = await embRes.text();
+      let parsedDetails: unknown = errText;
+      try {
+        parsedDetails = JSON.parse(errText);
+      } catch {
+        // Keep string if not valid JSON
+      }
       return sendJson(
         res,
-        { error: 'NVIDIA embedding request failed', details: errText },
+        { error: 'NVIDIA embedding request failed', details: parsedDetails },
         502
       );
     }

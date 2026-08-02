@@ -160,8 +160,18 @@ export class ChatMainComponent {
       },
       error: (err) => {
         clearInterval(stepInterval);
-        const rawError = err?.error?.error ?? err?.error?.message ?? err?.message;
-        const errorMessage = typeof rawError === 'string' ? rawError : JSON.stringify(rawError) || 'Error al procesar la ingesta en Supabase.';
+        const errObj = err?.error;
+        let errorMessage = 'Error al procesar la ingesta.';
+        if (typeof errObj === 'string') {
+          errorMessage = errObj;
+        } else if (errObj?.details) {
+          const detailsStr = typeof errObj.details === 'object' ? JSON.stringify(errObj.details) : String(errObj.details);
+          errorMessage = `${errObj.error || 'Error'}: ${detailsStr}`;
+        } else if (errObj?.error) {
+          errorMessage = typeof errObj.error === 'string' ? errObj.error : JSON.stringify(errObj.error);
+        } else if (err?.message) {
+          errorMessage = err.message;
+        }
         this.messages = [
           ...this.messages,
           {

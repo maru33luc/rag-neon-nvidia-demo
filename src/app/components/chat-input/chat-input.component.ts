@@ -158,31 +158,115 @@ export class ChatInputComponent {
     }
   }
 
-  private loadFile(file: File): void {
+  private async loadFile(file: File): Promise<void> {
     this.sourceError = '';
     this.selectedFileName = file.name;
+    this.fileText = '';
 
     if (file.size > this.maxFileSize) {
       this.sourceError = 'El archivo es demasiado grande. Usa un archivo menor a 5 MB.';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        this.fileText = result.trim();
-        if (!this.fileText) {
-          this.sourceError = 'El archivo seleccionado no contiene texto legible.';
-        }
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+    try {
+      if (ext === 'pdf') {
+        this.fileText = await this.readPdfFile(file);
+      } else if (ext === 'doc' || ext === 'docx') {
+        this.fileText = await this.readWordFile(file, ext);
       } else {
-        this.sourceError = 'No se pudo leer el archivo. Usa un archivo de texto compatible.';
+        this.fileText = await this.readTextFile(file);
       }
-    };
-    reader.onerror = () => {
-      this.sourceError = 'Error al leer el archivo. Intenta con otro documento.';
-    };
-    reader.readAsText(file, 'UTF-8');
+
+      this.fileText = this.fileText.trim();
+      if (!this.fileText) {
+        this.sourceError = 'No se pudo extraer texto legible del archivo seleccionado.';
+      }
+    } catch (error: any) {
+      console.error('Error al procesar archivo:', error);
+      this.sourceError = error?.message || 'Error al leer el archivo. Intenta con otro documento.';
+      this.fileText = '';
+    }
+  }
+
+  private readTextFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+          resolve(result.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ''));
+        } else {
+          reject(new Error('Formato de archivo no válido.'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo de texto.'));
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+
+  private readArrayBuffer(file: File): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Error al leer los datos del archivo.'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo binario.'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  private async readWordFile(file: File, ext: string): Promise<string> {
+    const arrayBuffer = await this.readArrayBuffer(file);
+    try {
+      const mammothModule = await import('mammoth');
+      const result = await mammothModule.extractRawText({ arrayBuffer });
+      if (result.value && result.value.trim()) {
+        return result.value.trim();
+      }
+    } catch (e) {
+      console.warn('Mammoth parsing error, trying binary text extraction fallback:', e);
+    }
+
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const decoded = decoder.decode(arrayBuffer);
+    const textMatches = decoded.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s.,;:!?()'""\-]{4,}/g);
+    if (textMatches && textMatches.length > 0) {
+      return textMatches.map((s) => s.trim()).filter((s) => s.length > 3).join(' ');
+    }
+
+    throw new Error('No se pudo extraer texto del archivo Word (.doc / .docx).');
+  }
+
+  private async readPdfFile(file: File): Promise<string> {
+    const arrayBuffer = await this.readArrayBuffer(file);
+    const pdfjs = await import('pdfjs-dist');
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version || '4.10.38'}/pdf.worker.min.mjs`;
+    }
+
+    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
+    const pdf = await loadingTask.promise;
+    const pageTexts: string[] = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const tokenContent = await page.getTextContent();
+      const pageStr = tokenContent.items
+        .map((item: any) => item.str)
+        .join(' ')
+        .trim();
+      if (pageStr) {
+        pageTexts.push(pageStr);
+      }
+    }
+
+    return pageTexts.join('\n\n');
   }
 
   onKeydown(event: KeyboardEvent): void {

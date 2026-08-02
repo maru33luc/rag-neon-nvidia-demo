@@ -38,14 +38,14 @@
         (dragleave)="onDragLeave($event)"
         (drop)="onDrop($event)"
       >
-        <input type="file" accept="text/*,.md,.json,.csv" class="file-input" (change)="onFileInputChange($event)" />
+        <input type="file" accept=".txt,.md,.pdf,.doc,.docx,.json,.csv,.html,.xml,.ts,.js,.py,.sql" class="file-input" (change)="onFileInputChange($event)" />
         <div class="file-drop-content">
-          <strong>Arrastra y suelta un archivo</strong> o haz clic para seleccionar uno.
+          <strong>Arrastra y suelta un archivo (.pdf, .doc, .docx, .txt)</strong> o haz clic para seleccionar uno.
           @if (selectedFileName) {
             <span class="file-name">{{ selectedFileName }}</span>
           }
           @if (fileText && !selectedFileName) {
-            <span class="file-name">Archivo cargado correctamente.</span>
+            <span class="file-name">Texto extraído correctamente.</span>
           }
         </div>
       </div>
@@ -83,6 +83,6 @@
 
   <p class="disclaimer">
     <span class="disclaimer-badge">{{ mode === 'ask' ? '🔍 Búsqueda Vectorial 2048d' : '⚡ Vectorización Nemotron' }}</span>
-    {{ mode === 'ask' ? 'El sistema consultará Supabase pgvector y responderá fundamentado únicamente en tu base de datos.' : source === 'file' ? 'Arrastra o selecciona un archivo de texto; se vectorizará e ingresará en la base de datos.' : source === 'url' ? 'Cargar la fuente desde una URL pública y extraer el texto para vectorizarlo.' : 'El texto se dividirá en fragmentos, generará vectores de 2048d con NVIDIA y los guardará en PostgreSQL.' }}
+    {{ mode === 'ask' ? 'El sistema consultará Supabase pgvector y responderá fundamentado únicamente en tu base de datos.' : source === 'file' ? 'Soporta archivos .pdf, .doc, .docx, .txt; el texto se extraerá y vectorizará automáticamente.' : source === 'url' ? 'Cargar la fuente desde una URL pública y extraer el texto para vectorizarlo.' : 'El texto se dividirá en fragmentos, generará vectores de 2048d con NVIDIA y los guardará en PostgreSQL.' }}
   </p>
 </div>
