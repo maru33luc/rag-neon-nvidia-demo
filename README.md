@@ -66,7 +66,7 @@ rag-supabase-nvidia-demo/
 - Angular CLI `^19.x`
 - Vercel CLI logged in under your account
 - Neon CLI logged in under your account
-- `pg_dump` / `pg_restore` installed for database migration
+- Supabase CLI logged in and linked to the source project for migration
 - NVIDIA API key with access to embeddings and chat completion services
 
 ---
@@ -140,15 +140,15 @@ npm run migrate:neon
 This helper uses the injected `DATABASE_URL` from `.env.local` or the value from your local `.env`.
 
 ### 3. Migrate your Supabase data
-Set `SUPABASE_DATABASE_URL` to your Supabase Postgres connection and `NEON_DATABASE_URL` to your Neon connection, then run:
+If you are logged into Supabase CLI and the source project is linked, you can migrate directly from the source project without a separate dump file. Optionally, set `SUPABASE_DATABASE_URL` to use a direct connection string instead.
 
 ```bash
 npm run migrate:db
 ```
 
-If you already downloaded a Supabase backup file, set `DUMP_FILE` to its path and the script will restore that file directly into Neon.
+If you already downloaded a Supabase backup file, set `DUMP_FILE` to a local `.json` or `.sql` export file and the script will restore that file directly into Neon.
 
-This helper script dumps `public.documents` from Supabase (when `SUPABASE_DATABASE_URL` is present) and restores it into Neon. If `NEON_DATABASE_URL` is omitted, it falls back to `DATABASE_URL`.
+This helper script exports `public.documents` from Supabase and restores it into Neon using the linked Supabase project or the direct `SUPABASE_DATABASE_URL`. If `NEON_DATABASE_URL` is omitted, it falls back to `DATABASE_URL` or reconstructs the Neon connection from `PGHOST`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`.
 
 ---
 
@@ -156,7 +156,7 @@ This helper script dumps `public.documents` from Supabase (when `SUPABASE_DATABA
 
 This repository is intended for a single Vercel project containing both the Angular static site and the API routes.
 
-- Frontend is built by `npm run build` into `dist/rag-supabase-nvidia-demo/browser`.
+- Frontend is built by `npm run build` into `dist/rag-supabase-nvidia-demo`.
 - API endpoints are served from `api/ask.ts` and `api/ingest.ts`.
 - The route `*/api/*` is proxied to the Vercel functions, and the SPA fallback serves `index.html`.
 
@@ -178,7 +178,7 @@ npx vercel --prod
 - Organization: `maru33luc's projects`
 - Framework: Other
 - Build command: `npm run build`
-- Output directory: `dist/rag-supabase-nvidia-demo/browser`
+- Output directory: `dist/rag-supabase-nvidia-demo`
 
 ---
 

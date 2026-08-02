@@ -57,6 +57,9 @@ testem.log
 /typings
 .sass-cache/
 
+# Supabase migration artifacts
+supabase_documents*
+
 # System files
 .DS_Store
 Thumbs.db
