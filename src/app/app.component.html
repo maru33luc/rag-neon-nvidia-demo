@@ -1,0 +1,7 @@
+<div class="app-shell" [class.sidebar-collapsed]="!sidebarOpen">
+  <app-sidebar [open]="sidebarOpen" (toggle)="toggleSidebar()" />
+
+  <main class="main-panel">
+    <app-chat-main (toggleSidebar)="toggleSidebar()" />
+  </main>
+</div>

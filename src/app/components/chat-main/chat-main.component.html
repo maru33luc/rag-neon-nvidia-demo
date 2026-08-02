@@ -1,0 +1,78 @@
+<div class="chat-main">
+  <!-- Header Bar -->
+  <header class="chat-header">
+    <div class="header-left">
+      <button class="icon-btn sidebar-toggle" type="button" aria-label="Abrir menú" (click)="onToggleSidebar()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+
+      <div class="model-info">
+        <h1 class="chat-title">Enterprise RAG Assistant</h1>
+        <div class="model-badges">
+          <span class="badge nvidia">
+            <span class="dot"></span> NVIDIA NIM (2048-dim)
+          </span>
+          <span class="badge supabase">
+            <span class="dot"></span> Supabase pgvector
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Chat Content Area -->
+  <div class="chat-scroll-area">
+    <div class="chat-container">
+
+      <!-- Suggestion Cards (Show if few messages) -->
+      @if (messages.length <= 2) {
+        <div class="suggestions-section">
+          <p class="suggestions-label">Sugerencias rápidas para comenzar:</p>
+          <div class="suggestions-grid">
+            @for (item of suggestions; track item.title) {
+              <button class="suggestion-card" type="button" (click)="useSuggestion(item)">
+                <span class="card-icon">{{ item.icon }}</span>
+                <div class="card-body">
+                  <span class="card-title">{{ item.title }}</span>
+                  <span class="card-desc">{{ item.query }}</span>
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Message History -->
+      <div class="messages-list">
+        @for (msg of messages; track msg.id || $index) {
+          <app-chat-message [message]="msg"></app-chat-message>
+        }
+      </div>
+
+      <!-- Animated RAG Processing Indicator -->
+      @if (isProcessing) {
+        <div class="processing-card">
+          <div class="processing-header">
+            <div class="spinner"></div>
+            <span class="processing-title">Ejecutando Pipeline RAG en Supabase & NVIDIA...</span>
+          </div>
+          <div class="processing-steps">
+            @for (step of processingSteps; track step.label; let i = $index) {
+              <div class="step-item" [class.active]="i === currentStepIndex" [class.done]="i < currentStepIndex">
+                <span class="step-icon">{{ step.icon }}</span>
+                <span class="step-label">{{ step.label }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Chat Input Footer -->
+  <footer class="chat-footer">
+    <app-chat-input [isBusy]="isProcessing" (submitMessage)="onInputSubmit($event)"></app-chat-input>
+  </footer>
+</div>

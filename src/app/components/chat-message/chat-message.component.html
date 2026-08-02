@@ -1,0 +1,103 @@
+<article class="message" [class.user]="isUser" [class.assistant]="!isUser">
+  <div class="message-avatar" [class.user-avatar]="isUser" [class.ai-avatar]="!isUser">
+    @if (isUser) {
+      <span class="user-initial">U</span>
+    } @else {
+      <div class="ai-badge">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#76B900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    }
+  </div>
+
+  <div class="message-body">
+    <div class="message-header">
+      <span class="message-role">{{ avatarLabel }}</span>
+      <span class="message-time">{{ formattedTime }}</span>
+    </div>
+
+    <!-- Collapsible Reasoning Block for <think> tags -->
+    @if (!isUser && parsedThinking) {
+      <div class="thinking-wrapper" [class.expanded]="showThinking">
+        <button class="thinking-toggle-btn" type="button" (click)="showThinking = !showThinking">
+          <div class="thinking-label">
+            <span class="brain-icon">🧠</span>
+            <span class="thinking-title">Razonamiento Interno del Modelo</span>
+            <span class="tag-badge">&lt;think&gt;</span>
+          </div>
+          <span class="chevron">{{ showThinking ? '▲ Contraer' : '▼ Expandir pensador' }}</span>
+        </button>
+
+        @if (showThinking) {
+          <div class="thinking-content">
+            <div class="thinking-banner">
+              <strong>Nota del Ingeniero:</strong> Este bloque refleja el proceso de razonamiento paso a paso (*Chain of Thought*) generado por el modelo de IA antes de dar su respuesta final.
+            </div>
+            <pre class="thinking-text">{{ parsedThinking }}</pre>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Main Message Body -->
+    <div class="message-content" [innerHTML]="formatMarkdown(parsedAnswer)"></div>
+
+    <!-- Database Context / Vector Matches Drawer -->
+    @if (!isUser && message.matches && message.matches.length > 0) {
+      <div class="sources-drawer" [class.open]="showSources">
+        <button class="sources-toggle-btn" type="button" (click)="showSources = !showSources">
+          <div class="sources-info">
+            <svg class="db-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+            <span class="sources-title">Fuentes Recuperadas de la Base de Datos</span>
+            <span class="sources-badge">{{ message.matches.length }} fragmento{{ message.matches.length === 1 ? '' : 's' }} (pgvector)</span>
+          </div>
+          <span class="chevron">{{ showSources ? '▲ Ocultar fuentes' : '▼ Ver fuentes vectoriales' }}</span>
+        </button>
+
+        @if (showSources) {
+          <div class="sources-grid">
+            @for (match of message.matches; track $index) {
+              <div class="source-card">
+                <div class="source-card-header">
+                  <span class="source-index">Chunk #{{ $index + 1 }}</span>
+                  @if (calculateSimilarity(match.distance) !== null) {
+                    <span class="similarity-badge" [class.high]="(calculateSimilarity(match.distance) ?? 0) >= 60">
+                      🎯 {{ calculateSimilarity(match.distance) }}% Coincidencia Semántica
+                    </span>
+                  }
+                </div>
+                <p class="source-text">{{ match.content }}</p>
+                @if (match.id) {
+                  <div class="source-card-footer">
+                    <span class="uuid-label">UUID en Supabase:</span>
+                    <code>{{ match.id }}</code>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Message Footer Actions -->
+    @if (!isUser) {
+      <div class="message-actions">
+        <button class="action-btn" type="button" (click)="copyToClipboard()">
+          @if (copied) {
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span style="color: #3ECF8E;">¡Copiado!</span>
+          } @else {
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copiar respuesta</span>
+          }
+        </button>
+      </div>
+    }
+  </div>
+</article>

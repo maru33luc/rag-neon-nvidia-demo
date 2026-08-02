@@ -1,0 +1,53 @@
+<aside class="sidebar" [class.open]="open">
+  <div class="sidebar-top">
+    <button class="icon-btn sidebar-toggle" type="button" aria-label="Alternar panel" (click)="onToggle()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M3 6h18M3 12h18M3 18h18"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
+
+    <button class="new-chat-btn" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+      <span>Nuevo chat</span>
+    </button>
+  </div>
+
+  <nav class="conversations" aria-label="Historial de conversaciones">
+    <p class="section-label">Recientes</p>
+
+    <ul class="conversation-list">
+      @for (item of conversations; track item.id) {
+        <li>
+          <button class="conversation-item" [class.active]="item.active" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="conversation-title">{{ item.title }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="user-profile" type="button">
+      <span class="avatar">M</span>
+      <span class="user-info">
+        <span class="user-name">Maru</span>
+        <span class="user-plan">Plan gratuito</span>
+      </span>
+    </button>
+  </div>
+</aside>

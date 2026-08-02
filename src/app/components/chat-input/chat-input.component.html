@@ -1,0 +1,40 @@
+<div class="chat-input-area">
+  <div class="mode-switcher" role="tablist" aria-label="Modo de consulta">
+    <button class="mode-btn" type="button" [class.active]="mode === 'ask'" (click)="mode = 'ask'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <span>Preguntar a la BD (RAG)</span>
+    </button>
+    <button class="mode-btn" type="button" [class.active]="mode === 'ingest'" (click)="mode = 'ingest'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      <span>Ingestar documento (pgvector)</span>
+    </button>
+  </div>
+
+  <div class="input-wrapper" [class.ingest-mode]="mode === 'ingest'">
+    <textarea
+      class="message-input"
+      rows="2"
+      [(ngModel)]="draft"
+      (keydown)="onKeydown($event)"
+      [placeholder]="mode === 'ask' ? 'Haz una pregunta sobre tus documentos almacenados...' : 'Pega el texto del documento que deseas vectorizar e ingresar a Supabase...'"
+      aria-label="Mensaje"
+    ></textarea>
+
+    <button class="send-btn" type="button" aria-label="Enviar mensaje" [disabled]="isBusy || !draft.trim()" (click)="onSubmit()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 19V5M5 12l7-7 7 7"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+  </div>
+
+  <p class="disclaimer">
+    <span class="disclaimer-badge">{{ mode === 'ask' ? '🔍 Búsqueda Vectorial 2048d' : '⚡ Vectorización Nemotron' }}</span>
+    {{ mode === 'ask' ? 'El sistema consultará Supabase pgvector y responderá fundamentado únicamente en tu base de datos.' : 'El texto se dividirá en fragmentos, generará vectores de 2048d con NVIDIA y los guardará en PostgreSQL.' }}
+  </p>
+</div>
