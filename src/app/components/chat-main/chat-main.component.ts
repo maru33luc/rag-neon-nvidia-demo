@@ -126,7 +126,8 @@ export class ChatMainComponent {
         },
         error: (err) => {
           clearInterval(stepInterval);
-          const errorMessage = err?.error?.error || 'Error al conectar con la Edge Function de Supabase.';
+          const rawError = err?.error?.error ?? err?.error?.message ?? err?.message;
+        const errorMessage = typeof rawError === 'string' ? rawError : JSON.stringify(rawError) || 'Error al conectar con la Edge Function de Supabase.';
           this.messages = [
             ...this.messages,
             {
@@ -159,7 +160,8 @@ export class ChatMainComponent {
       },
       error: (err) => {
         clearInterval(stepInterval);
-        const errorMessage = err?.error?.error || 'Error al procesar la ingesta en Supabase.';
+        const rawError = err?.error?.error ?? err?.error?.message ?? err?.message;
+        const errorMessage = typeof rawError === 'string' ? rawError : JSON.stringify(rawError) || 'Error al procesar la ingesta en Supabase.';
         this.messages = [
           ...this.messages,
           {

@@ -1,4 +1,4 @@
-const { Pool } = require('@neondatabase/serverless');
+import { Pool } from '@neondatabase/serverless';
 
 const DATABASE_URL = process.env['DATABASE_URL'];
 const NVIDIA_EMBEDDINGS_API_KEY =
@@ -89,7 +89,7 @@ function parseJsonBody(req: any): Promise<any> {
   });
 }
 
-module.exports = async function handler(req: any, res: any) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return sendJson(res, { error: 'Method not allowed' }, 405);
   }
@@ -212,5 +212,3 @@ Respuesta Detallada:`;
     await pool.end();
   }
 }
-
-export {};
