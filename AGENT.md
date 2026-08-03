@@ -1,147 +1,152 @@
-# AGENT.md - AI Coding Agent Guidelines & Repository Architecture
+# AGENT.md — AI Coding Agent Guidelines
 
-This document provides instructions, context, architecture patterns, and conventions for AI Agents working on the **rag-supabase-nvidia-demo** project.
+This document describes the architecture, conventions, and rules for AI agents working on this repository.
 
 ---
 
 ## 1. Project Overview
 
-**rag-supabase-nvidia-demo** is a full-stack Retrieval-Augmented Generation (RAG) application.
-It integrates an Angular 19 frontend with a Supabase backend utilizing `pgvector` for vector storage and retrieval, and NVIDIA API endpoints (Nemotron / Laguna models) for document embedding and LLM response generation via Supabase Edge Functions.
+**rag-neon-nvidia-demo** is a full-stack RAG (Retrieval-Augmented Generation) application.
 
-### Core Capabilities
-1. **Document Ingestion (`/functions/ingest`)**: Generates text embeddings using NVIDIA Nemotron embedding model (2048 dimensions) and persists chunks into Supabase `documents` table with `pgvector`.
-2. **RAG Semantic Search & Q&A (`/functions/ask`)**: Converts query to vector embeddings, performs cosine similarity search via `match_documents` PostgreSQL function, constructs prompt with retrieved context, and queries NVIDIA Chat API for grounded answer generation.
-3. **Interactive Frontend (`src/app`)**: Angular 19 SPA enabling document upload/ingestion and real-time interactive Q&A.
+- **Frontend:** Angular 19 SPA
+- **Backend:** Vercel Serverless Functions (`api/ask.ts`, `api/ingest.ts`)
+- **Vector database:** Neon Postgres + pgvector
+- **AI:** NVIDIA NIM APIs (embeddings + LLM)
 
----
-
-## 2. Tech Stack & Dependencies
-
-- **Frontend**: Angular 19, TypeScript 5.7+, RxJS, SCSS
-- **Backend & Database**: Supabase (PostgreSQL + `pgvector`), Deno (Supabase Edge Functions)
-- **AI / LLM Integration**: NVIDIA API (`https://integrate.api.nvidia.com/v1`)
-  - Embeddings: `nvidia/nemotron-3-embed-1b` (2048 dimensions)
-  - Chat/LLM: `poolside/laguna-xs-2.1` or specified NVIDIA LLM
-- **Package Manager**: npm
+The `supabase/` directory contains legacy migrations and edge functions kept for reference. **Do not modify them.** The active runtime is `api/`.
 
 ---
 
-## 3. Repository Structure
+## 2. Repository Structure
 
-```text
-rag-supabase-nvidia-demo/
-├── .env.example             # Environment variables template
-├── angular.json             # Angular workspace configuration
-├── package.json             # Node dependencies and npm scripts
-├── tsconfig.json            # Base TypeScript configuration
-├── AGENT.md                 # AI agent guidelines & reference (this file)
-├── README.md                # Human-readable project description
-├── src/
-│   ├── main.ts              # Angular app bootstrap
-│   ├── styles.scss          # Global application styling
-│   ├── environments/        # Environment configurations (prod / dev)
-│   └── app/
-│       ├── app.component.ts # Root Angular component
-│       ├── components/      # Standalone UI components (ingest, ask, chat UI)
-│       └── services/        # Services for Supabase API interactions
-└── supabase/
-    ├── config.toml          # Supabase project configuration
-    ├── README_RAG_SETUP.md  # Detailed setup guide for RAG stack
-    ├── migrations/          # SQL migrations (pgvector extension, tables, RPC match function)
-    └── functions/           # Deno Edge Functions
-        ├── ingest/          # Edge Function: Ingest text & generate embeddings
-        └── ask/             # Edge Function: RAG semantic search & LLM response
+```
+rag-neon-nvidia-demo/
+├── api/
+│   ├── ask.ts              # POST /api/ask — embed question, similarity search, LLM answer
+│   └── ingest.ts           # POST /api/ingest — chunk, embed, insert into Neon
+├── scripts/
+│   ├── apply-neon-migrations.js
+│   └── migrate-from-supabase.js
+├── src/app/
+│   ├── components/
+│   │   ├── chat-input/     # Input bar (ask / ingest modes, file/url/text sources)
+│   │   ├── chat-main/      # Conversation view, orchestrates RagService calls
+│   │   ├── chat-message/   # Renders a single message (markdown, source matches)
+│   │   └── sidebar/        # Conversation list panel
+│   └── services/
+│       └── rag.service.ts  # HTTP client — wraps /api/ask and /api/ingest
+├── supabase/               # Legacy reference only — do not modify
+├── .env.example
+├── vercel.json
+└── package.json
 ```
 
 ---
 
-## 4. Development Workflow & Commands
+## 3. Key Constants
 
-### 4.1 Prerequisites
-- Node.js >= 20.x
-- npm >= 10.x
-- Supabase CLI (`npx supabase` or global `supabase`)
-- Docker Desktop (for local Supabase development)
+| Constant | Value |
+|---|---|
+| Embedding model | `nvidia/nemotron-3-embed-1b` |
+| Embedding dimensions | `2048` |
+| LLM model | `poolside/laguna-xs-2.1` |
+| Chunk size | `~2000 chars` (500 tokens × 4 chars/token) |
+| Default `top_k` | `6` |
+| Max file size (frontend) | `5 MB` |
 
-### 4.2 Environment Setup
-Ensure `.env` exists in root:
+---
+
+## 4. Environment Variables
+
+Required at runtime (Vercel serverless functions):
+
+```
+DATABASE_URL              # Neon Postgres connection string (injected by Vercel–Neon integration)
+NVIDIA_EMBEDDINGS_API_KEY # nvapi-...
+NVIDIA_LLM_API_KEY        # nvapi-...
+```
+
+Optional (have defaults in code):
+
+```
+NVIDIA_EMBEDDINGS_MODEL       # default: nvidia/nemotron-3-embed-1b
+NVIDIA_EMBEDDINGS_INVOKE_URL  # default: https://integrate.api.nvidia.com/v1/embeddings
+NVIDIA_LLM_MODEL              # default: poolside/laguna-xs-2.1
+NVIDIA_LLM_INVOKE_URL         # default: https://integrate.api.nvidia.com/v1/chat/completions
+```
+
+---
+
+## 5. Development Commands
+
 ```bash
-cp .env.example .env
-```
-Ensure key environment variables are set:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `NVIDIA_EMBEDDINGS_API_KEY`
-- `NVIDIA_LLM_API_KEY`
-
-### 4.3 Running the Application
-
-#### A. Frontend (Angular 19)
-```bash
-# Install dependencies
-npm install
-
-# Start development server (http://localhost:4200)
-npm start
-
-# Build for production
-npm run build
-```
-
-#### B. Backend (Supabase Local Development)
-```bash
-# Start local Supabase services (Docker required)
-npx supabase start
-
-# Apply database migrations
-npx supabase db reset
-
-# Serve Edge Functions locally with environment variables
-npx supabase functions serve --env-file .env
-```
-
-#### C. Remote Supabase Deployment
-```bash
-# Link project to cloud reference
-npx supabase link --project-ref <PROJECT_REF>
-
-# Apply migrations
-npx supabase db push
-
-# Set remote secrets
-npx supabase secrets set --env-file .env --project-ref <PROJECT_REF>
-
-# Deploy Edge Functions
-npx supabase functions deploy ingest --project-ref <PROJECT_REF>
-npx supabase functions deploy ask --project-ref <YOUR_PROJECT_REF>
+npm install           # Install dependencies
+npx vercel dev        # Full stack local dev (Angular + API on port 3000)
+npm start             # Angular only (port 4200, no API)
+npm run build         # Production Angular build → dist/rag-supabase-nvidia-demo/browser
+npm run migrate:neon  # Apply SQL schema to Neon
+npm run migrate:db    # Migrate data from Supabase to Neon
+npx vercel --prod     # Deploy to production
 ```
 
 ---
 
-## 5. Coding Standards & Conventions for AI Agents
+## 6. Coding Standards
 
-### 5.1 Angular Rules
-1. **Standalone Components**: Use Angular 19 standalone components (`standalone: true`). Do not generate `NgModule` unless strictly necessary.
-2. **Strict Typing**: Specify explicit types for inputs, outputs, signals, and RxJS observables. Avoid standard `any`.
-3. **Service Layer**: Keep API calls and Supabase client interactions strictly inside Angular services (`src/app/services/`), keeping UI components light.
-4. **Styling**: SCSS for styling (`src/app/**/*.scss` and `src/styles.scss`). Use clean responsive layouts with modern CSS flexbox/grid.
+### Angular
+- All components are **standalone** (`standalone: true`). Never generate NgModules.
+- Keep HTTP calls inside `RagService`. Components only call service methods.
+- Use explicit TypeScript types. Avoid `any` except in API boundary parsing code.
+- SCSS for all styles.
 
-### 5.2 Supabase & Edge Function Rules
-1. **Deno / TypeScript Runtime**: Edge functions run on Deno. Imports must use URL module specifiers (e.g. `https://esm.sh/@supabase/supabase-js@2`).
-2. **Vector Dimension Alignment**: Ensure vector size in SQL migrations (`vector(2048)`) matches the output dimension of the selected NVIDIA embedding model (`nvidia/nemotron-3-embed-1b`).
-3. **Database Security (RLS)**: Row Level Security is enabled on table `documents`. Direct database mutations must respect RLS or go through server-side authenticated Edge Functions using `SUPABASE_SERVICE_ROLE_KEY`.
-4. **RPC Functions**: Use `match_documents` PostgreSQL function for similarity searches (`cosine` or `dot product`).
+### Vercel API functions (`api/*.ts`)
+- Each file exports a single `default async function handler(req, res)`.
+- Read all config from `process.env` at module level. Throw at startup if required vars are missing.
+- Return JSON via the local `sendJson(res, payload, status)` helper — never use `res.json()`.
+- Parse request body with the local `parseJsonBody(req)` helper (handles both pre-parsed and raw stream).
+- On NVIDIA or DB errors, return `502` with `{ error: string, details: unknown }`.
+- Always call `pool.end()` in the `finally` block.
 
-### 5.3 Error Handling & Logging
-- Edge functions must return appropriate HTTP status codes (`400` for bad request, `500` for API failures) and JSON response formatted as `{ "error": "description" }`.
-- Angular services must catch HTTP errors and present user-friendly notification in the UI.
+### Security rules
+- Never hardcode API keys or connection strings.
+- URL ingestion must validate protocol and block loopback addresses (already implemented in `ingest.ts`).
+- Do not expose `DATABASE_URL` to the frontend.
 
 ---
 
-## 6. AI Agent Guidelines & Safety Rules
+## 7. Database Schema
 
-- **Do Not Expose Secrets**: Never hardcode API keys, Supabase Service Role keys, or NVIDIA tokens in code files. Always read from `Deno.env` or `process.env`.
-- **Always Verify Signatures & Paths**: Before modifying files, inspect line ranges and imports using appropriate tools.
-- **Incremental Modifications**: Test changes iteratively using local dev servers (`npm start`, `npx supabase functions serve`).
+```sql
+-- Extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Table
+CREATE TABLE public.documents (
+  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content   TEXT NOT NULL,
+  embedding VECTOR(2048),
+  owner     UUID
+);
+
+-- Similarity search function
+CREATE OR REPLACE FUNCTION public.match_documents(
+  query_embedding VECTOR(2048),
+  match_count     INT DEFAULT 6
+)
+RETURNS TABLE (id UUID, content TEXT, distance FLOAT)
+LANGUAGE SQL STABLE AS $$
+  SELECT id, content, embedding <=> query_embedding AS distance
+  FROM public.documents
+  ORDER BY distance
+  LIMIT match_count;
+$$;
+```
+
+---
+
+## 8. Safety Rules
+
+- **Never commit** `.env`, `.env.local`, or any file containing real API keys.
+- **Never modify** `supabase/` files — they are reference-only.
+- Before editing `api/ask.ts` or `api/ingest.ts`, verify the NVIDIA model names and embedding dimensions are consistent with the DB schema (`vector(2048)`).
+- After changing API functions, redeploy with `npx vercel --prod` and verify the live endpoint responds correctly.

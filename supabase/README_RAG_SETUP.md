@@ -1,61 +1,93 @@
-Instalación y despliegue del sistema RAG usando Supabase
+# Legacy Supabase Setup — Reference Only
 
-Resumen
-- Migración SQL: habilita pgcrypto y pgvector, crea tabla `documents` con columna `embedding vector(2048)`, habilita RLS y crea la función `match_documents`.
-- Edge Functions (TypeScript): `ingest` para segmentar texto y crear embeddings con `nvidia/nemotron-3-embed-1b`; `ask` para generar embedding de la pregunta, recuperar contexto con `match_documents` y usar el modelo NVIDIA `poolside/laguna-xs-2.1` para responder.
+> **This directory is no longer the active runtime.**
+> The production backend runs on Vercel Serverless Functions (`api/`) with Neon Postgres.
+> This document is kept for historical reference and to document the original Supabase implementation.
 
-Requisitos locales
-- Supabase CLI instalado (https://supabase.com/docs/reference/cli)
-- Acceso a tu proyecto Supabase (URL y Service Role Key)
-- NVIDIA_EMBEDDINGS_API_KEY (o `NVIDIA_LLM_API_KEY` / `NVIDIA_API_KEY`) con permisos para el endpoint de embeddings de NVIDIA
-- NVIDIA_LLM_API_KEY (o `NVIDIA_API_KEY`) con permisos para el endpoint de chat completions de NVIDIA
+---
 
-Variables de entorno necesarias (para despliegue en Supabase y pruebas locales):
-- SUPABASE_URL (ej. https://xyzcompany.supabase.co)
-- SUPABASE_SERVICE_ROLE_KEY (service_role key - mantener secreta)
-- NVIDIA_EMBEDDINGS_API_KEY
-- NVIDIA_EMBEDDINGS_MODEL=nvidia/nemotron-3-embed-1b (opcional)
-- NVIDIA_EMBEDDINGS_INVOKE_URL=https://integrate.api.nvidia.com/v1/embeddings (opcional)
-- NVIDIA_LLM_API_KEY
-- NVIDIA_LLM_MODEL=poolside/laguna-xs-2.1 (opcional)
-- NVIDIA_LLM_INVOKE_URL=https://integrate.api.nvidia.com/v1/chat/completions (opcional)
+## What This Directory Contains
 
-Pasos para aplicar la migración (usar Supabase CLI conectado al proyecto):
-1. Conectar tu proyecto local con `supabase link --project-ref <project-ref>` o asegúrate de estar en el directorio correcto.
-2. Aplicar la migración:
-   - Opción A (db push): `supabase db remote set <DATABASE_URL>` y luego aplicar SQL manualmente o usar `supabase db push` si la CLI lo admite para el flujo de migraciones.
-   - Opción B (ejecución manual): Copiar el contenido de `supabase/migrations/000_init_pgvector_documents.sql` y ejecutarlo en la SQL editor de Supabase (Dashboard > SQL) o vía psql.
+| Path | Description |
+|---|---|
+| `migrations/` | SQL files that create the `documents` table, enable pgvector, and define `match_documents` |
+| `functions/ingest/` | Deno Edge Function — chunks text, generates NVIDIA embeddings, inserts into Supabase |
+| `functions/ask/` | Deno Edge Function — embeds query, runs similarity search, calls NVIDIA LLM |
+| `config.toml` | Supabase project configuration |
 
-Notas importantes sobre RLS y seguridad
-- La tabla `documents` tiene RLS habilitado. Las políticas creadas permiten que únicamente los propietarios (owner = auth.uid()) lean/insert sus documentos desde clientes autenticados.
-- Las Edge Functions usan la Service Role Key para operaciones privilegiadas (inserciones y RPC desde backend). El service role bypassa RLS: úsalo sólo en contexto de servidor.
-- Para las consultas desde el cliente, no expongas la service role key.
-- La función `match_documents` se invoca mediante RPC desde la Edge Function `ask`. Esto evita ejecutar SQL dinámico desde inputs del usuario, reduciendo el riesgo de inyección SQL.
+---
 
-Desplegar las Edge Functions
-1. Iniciar sesión y configurar Supabase CLI: `supabase login` y `supabase link --project-ref <project-ref>`.
-2. Deploy de la función `ingest`:
-   - `supabase functions deploy ingest --project-ref <project-ref> --env-file .env` (asegúrate de que el archivo .env contenga SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY)
-3. Deploy de la función `ask`:
-   - `supabase functions deploy ask --project-ref <project-ref> --env-file .env`
+## Original Architecture
 
-Probar localmente
-- Para pruebas locales con Supabase CLI: `supabase start` y usar curl/postman apuntando a `http://127.0.0.1:54321/functions/v1/ingest` y `/ask` con el header `apiKey: <tu_service_role_o_publishable_según corresponda>`.
+```
+[ Angular SPA ]
+      │
+      ▼
+[ Supabase Edge Functions (Deno) ]
+   /functions/v1/ingest  ──► NVIDIA Nemotron (2048d) ──► Supabase pgvector
+   /functions/v1/ask     ──► NVIDIA Nemotron ──► match_documents RPC ──► NVIDIA Laguna
+```
 
-Ejemplos de petición
-- Ingest:
-  POST /functions/v1/ingest
-  Body: { "text": "Tu texto largo...", "owner": "<user-uuid>" }
+---
 
-- Ask:
-  POST /functions/v1/ask
-  Body: { "question": "¿Qué dice el documento sobre X?", "top_k": 5 }
+## SQL Schema (still valid for Neon)
 
-Consideraciones finales
-- El chunking usa una heurística basada en caracteres (aprox. 1 token = 4 chars). Para precisión de tokenización se puede integrar tiktoken o similar.
-- Ajusta políticas RLS si necesitas compartir documentos entre usuarios o para roles administrativos.
+The migrations in `migrations/` are reused by the Neon setup. The schema is identical:
 
-Si deseas, puedo:
-- Añadir columnas adicionales a la tabla (metadata, title, source, url).
-- Ajustar chunking para basarse en tokens reales (integración con tiktoken).
-- Crear ejemplos de cliente en supabase-js para consumir `ask` sin exponer service role.
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE public.documents (
+  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content   TEXT NOT NULL,
+  embedding VECTOR(2048),
+  owner     UUID
+);
+
+CREATE OR REPLACE FUNCTION public.match_documents(
+  query_embedding VECTOR(2048),
+  match_count     INT DEFAULT 6
+)
+RETURNS TABLE (id UUID, content TEXT, distance FLOAT)
+LANGUAGE SQL STABLE AS $$
+  SELECT id, content, embedding <=> query_embedding AS distance
+  FROM public.documents
+  ORDER BY distance
+  LIMIT match_count;
+$$;
+```
+
+To apply this schema to Neon, use:
+
+```bash
+npm run migrate:neon
+```
+
+---
+
+## Original Environment Variables (Supabase)
+
+These were required for the Supabase Edge Functions deployment:
+
+```
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+NVIDIA_EMBEDDINGS_API_KEY
+NVIDIA_LLM_API_KEY
+```
+
+For the current Vercel + Neon deployment, see the root `.env.example` and `README.md`.
+
+---
+
+## Why We Migrated
+
+| Concern | Supabase | Vercel + Neon |
+|---|---|---|
+| Runtime | Deno (Edge Functions) | Node.js (Serverless) |
+| Cold starts | Higher on free tier | Lower on Vercel |
+| Frontend hosting | Separate | Same project |
+| DB connection | Supabase pooler | Neon serverless driver |
+| Auth / RLS | Enabled (complex) | Removed (simplified) |
+
+The migration script (`scripts/migrate-from-supabase.js`) exports `public.documents` from Supabase and restores it into Neon.
